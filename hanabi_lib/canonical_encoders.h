@@ -45,7 +45,7 @@ class CanonicalObservationEncoder : public ObservationEncoder {
   std::vector<float> Encode(const HanabiObservation& obs,
                             bool show_own_cards,
                             const std::vector<int>& order,
-							bool color_major,
+                            bool color_major,
                             bool shuffle_color,
                             const std::vector<int>& color_permute,
                             const std::vector<int>& inv_color_permute,
@@ -59,7 +59,7 @@ class CanonicalObservationEncoder : public ObservationEncoder {
   std::vector<float> EncodeLastAction(
       const HanabiObservation& obs,
       const std::vector<int>& order,
-	  bool color_major,
+      bool color_major,
       bool shuffle_color,
       const std::vector<int>& color_permute) const;
 
@@ -68,13 +68,13 @@ class CanonicalObservationEncoder : public ObservationEncoder {
 
   std::vector<float> EncodeOwnHand(
       const HanabiObservation& obs,
-	  bool color_major,
+      bool color_major,
       bool shuffle_color,
       const std::vector<int>& color_permute) const;
 
   std::vector<float> EncodeAllHand(
       const HanabiObservation& obs,
-	  bool color_major,
+      bool color_major,
       bool shuffle_color,
       const std::vector<int>& color_permute) const;
 
@@ -91,6 +91,21 @@ int LastActionSectionUniLength(const HanabiGame& game);
 int LastActionSectionSymLength(const HanabiGame& game);
 int TotalUniLength(const HanabiGame& game);
 int TotalSymLength(const HanabiGame& game);
+
+void CombineUniSym(std::vector<float>& encoding,
+                   const std::vector<float>& encoding_uni,
+                   const std::vector<float>* encoding_sym,
+                   int offset_uni,
+                   int offset_sym,
+                   int num_colors);
+
+std::vector<float> CombineColorEncodes(const HanabiGame& game,
+                                       const std::vector<float>& encoding1,
+                                       const std::vector<float>& encoding2,
+                                       int uni_len1,
+                                       int sym_len1,
+                                       int uni_len2,
+                                       int sym_len2);
 
 std::vector<int> ComputeCardCount(
     const HanabiGame& game,

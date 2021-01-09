@@ -156,8 +156,8 @@ int HanabiGame::HandSizeFromRules() const {
 // Uid mapping.  h=hand_size, p=num_players, c=colors, r=ranks
 // 0, h-1: discard
 // h, 2h-1: play
-// 2h, 2h+(p-1)c-1: color hint
-// 2h+(p-1)c, 2h+(p-1)c+(p-1)r-1: rank hint
+// 2h, 2h+(p-1)r-1: rank hint
+// 2h+(p-1)r, 2h+(p-1)r+(p-1)c-1: color hint
 HanabiMove HanabiGame::ConstructMove(int uid) const {
   if (uid < 0 || uid >= MaxMoves()) {
     return HanabiMove(HanabiMove::kInvalid, /*card_index=*/-1,
@@ -173,15 +173,15 @@ HanabiMove HanabiGame::ConstructMove(int uid) const {
                       /*target_offset=*/-1, /*color=*/-1, /*rank=*/-1);
   }
   uid -= MaxPlayMoves();
-  if (uid < MaxRevealColorMoves()) {
-    return HanabiMove(HanabiMove::kRevealColor, /*card_index=*/-1,
-                      /*target_offset=*/1 + uid / NumColors(),
-                      /*color=*/uid % NumColors(), /*rank=*/-1);
-  }
-  uid -= MaxRevealColorMoves();
-  return HanabiMove(HanabiMove::kRevealRank, /*card_index=*/-1,
+  if (uid < MaxRevealRankMoves()) {
+    return HanabiMove(HanabiMove::kRevealRank, /*card_index=*/-1,
                     /*target_offset=*/1 + uid / NumRanks(),
                     /*color=*/-1, /*rank=*/uid % NumRanks());
+  }
+  uid -= MaxRevealRankMoves();
+  return HanabiMove(HanabiMove::kRevealColor, /*card_index=*/-1,
+                      /*target_offset=*/1 + uid % NumPlayers(),
+                      /*color=*/uid / NumPlayers(), /*rank=*/-1);
 }
 
 HanabiMove HanabiGame::ConstructChanceOutcome(int uid) const {

@@ -85,12 +85,12 @@ int HanabiGame::GetMoveUid(HanabiMove::Type move_type, int card_index,
       return card_index;
     case HanabiMove::kPlay:
       return MaxDiscardMoves() + card_index;
-    case HanabiMove::kRevealColor:
-      return MaxDiscardMoves() + MaxPlayMoves() +
-             (target_offset - 1) * NumColors() + color;
     case HanabiMove::kRevealRank:
-      return MaxDiscardMoves() + MaxPlayMoves() + MaxRevealColorMoves() +
+      return MaxDiscardMoves() + MaxPlayMoves() +
              (target_offset - 1) * NumRanks() + rank;
+    case HanabiMove::kRevealColor:
+      return MaxDiscardMoves() + MaxPlayMoves() + MaxRevealRankMoves() +
+             color * NumColors() + (target_offset - 1);
     default:
       return -1;
   }

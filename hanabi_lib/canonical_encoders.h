@@ -45,6 +45,7 @@ class CanonicalObservationEncoder : public ObservationEncoder {
   std::vector<float> Encode(const HanabiObservation& obs,
                             bool show_own_cards,
                             const std::vector<int>& order,
+							bool color_major,
                             bool shuffle_color,
                             const std::vector<int>& color_permute,
                             const std::vector<int>& inv_color_permute,
@@ -58,6 +59,7 @@ class CanonicalObservationEncoder : public ObservationEncoder {
   std::vector<float> EncodeLastAction(
       const HanabiObservation& obs,
       const std::vector<int>& order,
+	  bool color_major,
       bool shuffle_color,
       const std::vector<int>& color_permute) const;
 
@@ -66,11 +68,13 @@ class CanonicalObservationEncoder : public ObservationEncoder {
 
   std::vector<float> EncodeOwnHand(
       const HanabiObservation& obs,
+	  bool color_major,
       bool shuffle_color,
       const std::vector<int>& color_permute) const;
 
   std::vector<float> EncodeAllHand(
       const HanabiObservation& obs,
+	  bool color_major,
       bool shuffle_color,
       const std::vector<int>& color_permute) const;
 
@@ -83,6 +87,10 @@ class CanonicalObservationEncoder : public ObservationEncoder {
 };
 
 int LastActionSectionLength(const HanabiGame& game);
+int LastActionSectionUniLength(const HanabiGame& game);
+int LastActionSectionSymLength(const HanabiGame& game);
+int TotalUniLength(const HanabiGame& game);
+int TotalSymLength(const HanabiGame& game);
 
 std::vector<int> ComputeCardCount(
     const HanabiGame& game,

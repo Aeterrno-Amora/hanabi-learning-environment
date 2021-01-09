@@ -747,11 +747,11 @@ void ColorEncodeLastAction_(const HanabiGame& game,
         last_move_type == HanabiMove::Type::kDiscard) {
       assert(last_move->color >= 0);
       assert(last_move->rank >= 0);
-	  int c = last_move->color;
-	  if (shuffle_color) {
-		c = color_permute[c];
-	  }
-	  encoding_sym[c].at(offset_sym + last_move->rank) = 1;
+      int c = last_move->color;
+      if (shuffle_color) {
+        c = color_permute[c];
+      }
+      encoding_sym[c].at(offset_sym + last_move->rank) = 1;
     }
     offset_sym += SymBitsPerCard(game);
 
@@ -913,11 +913,11 @@ void ColorEncodeCardKnowledge(const HanabiGame& game,
         if (card_knowledge.ColorPlausible(color)) {
           for (int rank = 0; rank < num_ranks; ++rank) {
             if (card_knowledge.RankPlausible(rank)) {
-			  int c = color;
-			  if (shuffle_color) {
-				c = color_permute[c];
-			  }
-			  encoding_sym[c].at(offset_sym + rank) = 1;
+              int c = color;
+              if (shuffle_color) {
+                c = color_permute[c];
+              }
+              encoding_sym[c].at(offset_sym + rank) = 1;
             }
           }
         }
@@ -1020,13 +1020,13 @@ int EncodeV0Belief_(const HanabiGame& game,
 
 void ColorEncodeV0Belief_(const HanabiGame& game,
                     const HanabiObservation& obs,
-					int &offset_uni,
-					int &offset_sym,
+                    int &offset_uni,
+                    int &offset_sym,
                     const std::vector<int>& order,
                     bool shuffle_color,
                     const std::vector<int>& color_permute,
-					std::vector<float>* encoding_uni,
-					std::vector<float>* encoding_sym,
+                    std::vector<float>* encoding_uni,
+                    std::vector<float>* encoding_sym,
                     std::vector<int>* ret_card_count) {
   // int bits_per_card = BitsPerCard(game);
   int num_colors = game.NumColors();
@@ -1056,23 +1056,23 @@ void ColorEncodeV0Belief_(const HanabiGame& game,
   for (int player_id = 0; player_id < num_players; ++player_id) {
     int num_cards = hands[player_id].Cards().size();
     for (int card_idx = 0; card_idx < num_cards; ++card_idx) {
-	  int card_offset = (start_offset_sym
-						+ player_offset_sym * player_id
-						+ card_idx * per_card_offset_sym);
-	  assert(card_offset < offset_sym);
+      int card_offset = (start_offset_sym
+                        + player_offset_sym * player_id
+                        + card_idx * per_card_offset_sym);
+      assert(card_offset < offset_sym);
       float total = 0;
-	  for (int c = 0; c < num_colors; ++c) {
-		for (int r = 0; r < num_ranks; ++r) {
-		  encoding_sym[c][card_offset + r] *= card_count[c * num_ranks + r];
-		  total += encoding_sym[c][card_offset + r];
-		}
-	  }
-	  assert(total > 0);
-	  for (int c = 0; c < num_colors; ++c) {
-		for (int r = 0; r < num_ranks; ++r) {
-		  encoding_sym[c][card_offset + r] /= total;
-		}
-	  }
+      for (int c = 0; c < num_colors; ++c) {
+        for (int r = 0; r < num_ranks; ++r) {
+          encoding_sym[c][card_offset + r] *= card_count[c * num_ranks + r];
+          total += encoding_sym[c][card_offset + r];
+        }
+      }
+      assert(total > 0);
+      for (int c = 0; c < num_colors; ++c) {
+        for (int r = 0; r < num_ranks; ++r) {
+          encoding_sym[c][card_offset + r] /= total;
+        }
+      }
     }
   }
   return len;
@@ -1117,69 +1117,103 @@ std::vector<int> CanonicalObservationEncoder::Shape() const {
   return {l};
 }
 
-int CanonicalObservationEncoder::TotalUniLength() const {
-  int l = HandsSectionUniLength(*parent_game_) +
-          BoardSectionUniLength(*parent_game_) +
-          DiscardSectionUniLength(*parent_game_) +
-          LastActionSectionUniLength(*parent_game_) +
-          (parent_game_->ObservationType() == HanabiGame::kMinimal
+int TotalUniLength(const HanabiGame& game) {
+  int l = HandsSectionUniLength(game) +
+          BoardSectionUniLength(game) +
+          DiscardSectionUniLength(game) +
+          LastActionSectionUniLength(game) +
+          (game.ObservationType() == HanabiGame::kMinimal
                ? 0
-               : CardKnowledgeSectionUniLength(*parent_game_));
+               : CardKnowledgeSectionUniLength(game));
   return l;
 }
-int CanonicalObservationEncoder::TotalSymLength() const {
-  int l = HandsSectionSymLength(*parent_game_) +
-          BoardSectionSymLength(*parent_game_) +
-          DiscardSectionSymLength(*parent_game_) +
-          LastActionSectionSymLength(*parent_game_) +
-          (parent_game_->ObservationType() == HanabiGame::kMinimal
+int TotalSymLength(const HanabiGame& game) {
+  int l = HandsSectionSymLength(game) +
+          BoardSectionSymLength(game) +
+          DiscardSectionSymLength(game) +
+          LastActionSectionSymLength(game) +
+          (game.ObservationType() == HanabiGame::kMinimal
                ? 0
-               : CardKnowledgeSectionSymLength(*parent_game_));
+               : CardKnowledgeSectionSymLength(game));
   return l;
+}
+
+void CombineUniSym(std::vector<float>& encoding,
+                   const std::vector<float>& encoding_uni,
+                   const std::vector<float>* encoding_sym,
+                   int offset_uni,
+                   int offset_sym) {
+    auto iter = encoding.begin();
+    assert(offset_uni == encoding_uni.size());
+    iter = std::copy(encoding_uni.begin(), encoding_uni.end(), iter);
+    for (int c = 0; c < num_color; ++c) {
+      assert(offset_sym == encoding_sym[c].size());
+      iter = std::copy(encoding_sym[c].begin(), encoding_sym[c].end(), iter);
+    }
+    assert(iter == encoding.end());
 }
 
 std::vector<float> CanonicalObservationEncoder::EncodeLastAction(
     const HanabiObservation& obs,
     const std::vector<int>& order,
-	bool color_major,
     bool shuffle_color,
     const std::vector<int>& color_permute) const {
   std::vector<float> encoding(LastActionSectionLength(*parent_game_), 0);
   if (color_major) {
 
-	int num_color = parent_game->NumColors();
-	std::vector<float> encoding_uni(LastActionSectionUniLength(*parent_game_), 0);
-	std::vector<float> encoding_sym[num_color];
-	for (int c = 0; c < num_color; ++c) {
-	  encoding_sym[c].resize(LastActionSectionSymLength(*parent_game_));
-	}
+    int num_color = parent_game->NumColors();
+    std::vector<float> encoding_uni(LastActionSectionUniLength(*parent_game_), 0);
+    std::vector<float> encoding_sym[num_color];
+    for (int c = 0; c < num_color; ++c) {
+      encoding_sym[c].resize(LastActionSectionSymLength(*parent_game_));
+    }
 
-	int offset_uni = 0;
-	int offset_sym = 0;
-	ColorEncodeLastAction_(
-		*parent_game_, obs, offset_uni, offset_sym, order, shuffle_color, color_permute, &encoding_uni, encoding_sym);
-
-	auto iter = encoding.begin();
-	assert(offset_uni == encoding_uni.size());
-	iter = std::copy(encoding_uni.begin(), encoding_uni.end(), iter);
-	for (int c = 0; c < num_color; ++c) {
-	  assert(offset_sym == encoding_sym[c].size());
-	  iter = std::copy(encoding_sym[c].begin(), encoding_sym[c].end(), iter);
-	}
-	assert(iter == encoding.end())
+    int offset_uni = 0;
+    int offset_sym = 0;
+    ColorEncodeLastAction_(
+        *parent_game_, obs, offset_uni, offset_sym, order, shuffle_color, color_permute, &encoding_uni, encoding_sym);
+    CombineUniSym(encoding, encoding_uni, encoding_sym, offset_uni, offset_sym);
 
   } else {
-	int offset = 0;
-	offset += EncodeLastAction_(
-		*parent_game_, obs, offset, order, shuffle_color, color_permute, &encoding);
-	assert(offset == encoding.size());
+    int offset = 0;
+    offset += EncodeLastAction_(
+        *parent_game_, obs, offset, order, shuffle_color, color_permute, &encoding);
+    assert(offset == encoding.size());
   }
+  return encoding;
+}
+
+std::vector<float> CombineColorEncodes(const HanabiGame& game,
+									   const std::vector<float>& encoding1,
+									   const std::vector<float>& encoding2,
+									   int uni_len1,
+									   int sym_len1,
+									   int uni_len2,
+									   int sym_len2) {
+  int num_colors = game.NumColors();
+  assert(encoding1.size() == uni_len1 + sym_len1 * num_colors);
+  assert(encoding2.size() == uni_len2 + sym_len2 * num_colors);
+  std::vector<float> encoding(encoding1.size() + encoding2.size(), 0);
+  auto iter = encoding.begin();
+  auto iter1 = encoding1.begin();
+  auto iter2 = encoding2.begin();
+  iter = std::copy(iter1, iter1 + uni_len1, iter);
+  iter1 += uni_len1;
+  iter = std::copy(iter2, iter2 + uni_len2, iter);
+  iter2 += uni_len2;
+  for (int c = 0; c < num_color; ++c) {
+	iter = std::copy(iter1, iter1 + sym_len1, iter);
+	iter1 += sym_len1;
+	iter = std::copy(iter2, iter2 + sym_len2, iter);
+	iter2 += sym_len2;
+  }
+  assert(iter == encoding.end());
   return encoding;
 }
 
 std::vector<float> ExtractBelief(const std::vector<float>& encoding,
                                  const HanabiGame& game,
-								 bool color_major,
+                                 bool color_major,
                                  bool all_player) {
   int num_colors = game.NumColors();
   int num_ranks = game.NumRanks();
@@ -1189,53 +1223,91 @@ std::vector<float> ExtractBelief(const std::vector<float>& encoding,
   std::vector<float> belief(num_players * hand_size * bits_per_card);
   if (color_major) {
 
-	int sym_bits_per_card = SymBitsPerCard(game);
-	int encoding_sector_len = sym_bits_per_card + 1;
-	int uni_len = CardKnowledgeSectionUniLength(game);
-	int sym_len = CardKnowledgeSectionSymLength(game);
-	assert(encoding_sector_len * hand_size * num_players == sym_len);
-	assert(uni_len + sym_len * num_colors == (int)encoding.size());
-	if (!all_player) {
-	  num_players = 1;
-	}
+    int sym_bits_per_card = SymBitsPerCard(game);
+    int encoding_sector_len = sym_bits_per_card + 1;
+    int uni_len = CardKnowledgeSectionUniLength(game);
+    int sym_len = CardKnowledgeSectionSymLength(game);
+    assert(encoding_sector_len * hand_size * num_players == sym_len);
+    assert(uni_len + sym_len * num_colors == (int)encoding.size());
+    if (!all_player) {
+      num_players = 1;
+    }
 
-	auto belief_iter = belief.begin();
-	for (int c = 0; c < num_colors; ++c) {
-	  for (int i = 0; i < num_players * hand_size; ++i) {
-		int offset = uni_len + i * encoding_sector_len;
-		auto encoding_iter = encoding.begin() + offset;
-		belief_iter = std::copy(encoding_iter, encoding_iter + sym_bits_per_card, belief_iter);
-	  }
-	}
-	assert(belief_iter == belief.end());
+    auto belief_iter = belief.begin();
+    for (int c = 0; c < num_colors; ++c) {
+      for (int i = 0; i < num_players * hand_size; ++i) {
+        int offset = uni_len + i * encoding_sector_len;
+        auto encoding_iter = encoding.begin() + offset;
+        belief_iter = std::copy(encoding_iter, encoding_iter + sym_bits_per_card, belief_iter);
+      }
+    }
+    assert(belief_iter == belief.end());
 
   } else {
 
-	int encoding_sector_len = bits_per_card + num_colors + num_ranks;
-	assert(encoding_sector_len * hand_size * num_players == (int)encoding.size());
-	if (!all_player) {
-	  num_players = 1;
-	}
+    int encoding_sector_len = bits_per_card + num_colors + num_ranks;
+    assert(encoding_sector_len * hand_size * num_players == (int)encoding.size());
+    if (!all_player) {
+      num_players = 1;
+    }
 
-	for (int i = 0; i < num_players; ++i) {
-	  for (int j = 0; j < hand_size; ++j) {
-		for (int k = 0; k < bits_per_card; ++k) {
-		  int belief_offset = (i * hand_size + j) * bits_per_card + k;
-		  int encoding_offset = (i * hand_size + j) * encoding_sector_len + k;
-		  belief[belief_offset] = encoding[encoding_offset];
-		}
-	  }
-	}
+    for (int i = 0; i < num_players; ++i) {
+      for (int j = 0; j < hand_size; ++j) {
+        for (int k = 0; k < bits_per_card; ++k) {
+          int belief_offset = (i * hand_size + j) * bits_per_card + k;
+          int encoding_offset = (i * hand_size + j) * encoding_sector_len + k;
+          belief[belief_offset] = encoding[encoding_offset];
+        }
+      }
+    }
 
   }
   return belief;
+}
+
+void ColorEncode_(const HanabiGame& game,
+                 const HanabiObservation& obs,
+                 int &offset_uni,
+                 int &offset_sym,
+				 bool show_own_cards,
+                 const std::vector<int>& order,
+                 bool shuffle_color,
+                 const std::vector<int>& color_permute,
+				 const std::vector<int>& inv_color_permute,
+				 bool hid_action,
+                 std::vector<float>* encoding_uni,
+				 std::vector<float>* encoding_sym) {
+  // int bits_per_card = BitsPerCard(game);
+  int start_offset_uni = offset_uni;
+  int start_offset_sym = offset_sym;
+
+  ColorEncodeHands(
+	  game, obs, offset_uni, offset_sym, show_own_cards, order, shuffle_color, color_permute, encoding_uni, encoding_sym);
+  ColorEncodeBoard(
+	  game, obs, offset_uni, offset_sym, shuffle_color, inv_color_permute, encoding_uni, encoding_sym);
+  ColorEncodeDiscards(
+	  game, obs, offset_uni, offset_sym, shuffle_color, color_permute, encoding_uni, encoding_sym);
+  if (hide_action) {
+	offset_uni += LastActionSectionUniLength(game);
+	offset_sym += LastActionSectionSymLength(game);
+  } else {
+	ColorEncodeLastAction_(
+		game, obs, offset_uni, offset_sym, order, shuffle_color, color_permute, encoding_uni, encoding_sym);
+  }
+  if (parent_game_->ObservationType() != HanabiGame::kMinimal) {
+	ColorEncodeV0Belief_(
+		game, obs, offset_uni, offset_sym, order, shuffle_color, color_permute, encoding_uni, encoding_sym, nullptr);
+  }
+
+  assert(offset_uni - start_offset_uni == TotalUniLength(game));
+  assert(offset_sym - start_offset_sym == TotalSymLength(game));
 }
 
 std::vector<float> CanonicalObservationEncoder::Encode(
     const HanabiObservation& obs,
     bool show_own_cards,
     const std::vector<int>& order,
-	bool color_major,
+    bool color_major,
     bool shuffle_color,
     const std::vector<int>& color_permute,
     const std::vector<int>& inv_color_permute,
@@ -1252,62 +1324,39 @@ std::vector<float> CanonicalObservationEncoder::Encode(
   // This offset is an index to the start of each section of the bit vector.
   // It is incremented at the end of each section.
   if (color_major) {
-	int num_color = parent_game->NumColors();
-	std::vector<float> encoding_uni(TotalUniLength(*parent_game_), 0);
-	std::vector<float> encoding_sym[num_color];
-	for (int c = 0; c < num_color; ++c) {
-	  encoding_sym[c].resize(TotalSymLength(*parent_game_));
-	}
+    int num_color = parent_game->NumColors();
+    std::vector<float> encoding_uni(TotalUniLength(*parent_game_), 0);
+    std::vector<float> encoding_sym[num_color];
+    for (int c = 0; c < num_color; ++c) {
+      encoding_sym[c].resize(TotalSymLength(*parent_game_));
+    }
 
-	int offset_uni = 0;
-	int offset_sym = 0;
-	ColorEncodeHands(
-		*parent_game_, obs, offset_uni, offset_sym, show_own_cards, order, shuffle_color, color_permute, &encoding_uni, encoding_sym);
-	ColorEncodeBoard(
-		*parent_game_, obs, offset_uni, offset_sym, shuffle_color, inv_color_permute, &encoding_uni, encoding_sym);
-	ColorEncodeDiscards(
-		*parent_game_, obs, offset_uni, offset_sym, shuffle_color, color_permute, &encoding_uni, encoding_sym);
-	if (hide_action) {
-	  offset_uni += LastActionSectionUniLength(*parent_game_);
-	  offset_sym += LastActionSectionSymLength(*parent_game_);
-	} else {
-	  ColorEncodeLastAction_(
-		  *parent_game_, obs, offset_uni, offset_sym, order, shuffle_color, color_permute, &encoding_uni, encoding_sym);
-	}
-	if (parent_game_->ObservationType() != HanabiGame::kMinimal) {
-	  ColorEncodeV0Belief_(
-		  *parent_game_, obs, offset_uni, offset_sym, order, shuffle_color, color_permute, &encoding_uni, encoding_sym, nullptr);
-	}
-
-	auto iter = encoding.begin();
-	assert(offset_uni == encoding_uni.size());
-	iter = std::copy(encoding_uni.begin(), encoding_uni.end(), iter);
-	for (int c = 0; c < num_color; ++c) {
-	  assert(offset_sym == encoding_sym[c].size());
-	  iter = std::copy(encoding_sym[c].begin(), encoding_sym[c].end(), iter);
-	}
-	assert(iter == encoding.end());
+    int offset_uni = 0;
+    int offset_sym = 0;
+	ColorEncode_(*parent_game_, obs, offset_uni, offset_sym,
+		show_own_cards, order, shuffle_color, color_permute, inv_color_permute, &encoding_uni, encoding_sym);
+    CombineUniSym(encoding, encoding_uni, encoding_sym, offset_uni, offset_sym);
 
   } else {
 
-	int offset = 0;
-	offset += EncodeHands(
-		*parent_game_, obs, offset, show_own_cards, order, shuffle_color, color_permute, &encoding);
-	offset += EncodeBoard(
-		*parent_game_, obs, offset, shuffle_color, inv_color_permute, &encoding);
-	offset += EncodeDiscards(
-		*parent_game_, obs, offset, shuffle_color, color_permute, &encoding);
-	if (hide_action) {
-	  offset += LastActionSectionLength(*parent_game_);
-	} else {
-	  offset += EncodeLastAction_(
-		  *parent_game_, obs, offset, order, shuffle_color, color_permute, &encoding);
-	}
-	if (parent_game_->ObservationType() != HanabiGame::kMinimal) {
-	  offset += EncodeV0Belief_(
-		  *parent_game_, obs, offset, order, shuffle_color, color_permute, &encoding, nullptr);
-	}
-	assert(offset == encoding.size());
+    int offset = 0;
+    offset += EncodeHands(
+        *parent_game_, obs, offset, show_own_cards, order, false, shuffle_color, color_permute, &encoding);
+    offset += EncodeBoard(
+        *parent_game_, obs, offset, false, shuffle_color, inv_color_permute, &encoding);
+    offset += EncodeDiscards(
+        *parent_game_, obs, offset, false, shuffle_color, color_permute, &encoding);
+    if (hide_action) {
+      offset += LastActionSectionLength(*parent_game_);
+    } else {
+      offset += EncodeLastAction_(
+          *parent_game_, obs, offset, order, false, shuffle_color, color_permute, &encoding);
+    }
+    if (parent_game_->ObservationType() != HanabiGame::kMinimal) {
+      offset += EncodeV0Belief_(
+          *parent_game_, obs, offset, order, false, shuffle_color, color_permute, &encoding, nullptr);
+    }
+    assert(offset == encoding.size());
 
   }
   return encoding;
@@ -1354,7 +1403,7 @@ std::vector<float> CanonicalObservationEncoder::EncodeOwnHandTrinary(
 
 std::vector<float> CanonicalObservationEncoder::EncodeOwnHand(
     const HanabiObservation& obs,
-	bool color_major,
+    bool color_major,
     bool shuffle_color,
     const std::vector<int>& color_permute
 ) const {
@@ -1367,30 +1416,30 @@ std::vector<float> CanonicalObservationEncoder::EncodeOwnHand(
   int offset = 0;
   if (color_major) {
 
-	int bits_per_color = len / num_color;
-	int sym_bits_per_card = SymBitsPerCard(*parent_game_);
-	for (const HanabiCard& card : cards) {
-	  // Only a player's own cards can be invalid/unobserved.
-	  assert(card.IsValid());
-	  int c = card.Color();
-	  if (shuffle_color) {
-		c = color_permute[c];
-	  }
-	  encoding.at(c * bits_per_color + offset + card.Rank()) = 1;
-	  offset += sym_bits_per_card;
-	}
-	assert(offset == bits_per_color);
+    int bits_per_color = len / num_color;
+    int sym_bits_per_card = SymBitsPerCard(*parent_game_);
+    for (const HanabiCard& card : cards) {
+      // Only a player's own cards can be invalid/unobserved.
+      assert(card.IsValid());
+      int c = card.Color();
+      if (shuffle_color) {
+        c = color_permute[c];
+      }
+      encoding.at(c * bits_per_color + offset + card.Rank()) = 1;
+      offset += sym_bits_per_card;
+    }
+    assert(offset == bits_per_color);
 
   } else {
 
-	for (const HanabiCard& card : cards) {
-	  // Only a player's own cards can be invalid/unobserved.
-	  assert(card.IsValid());
-	  int idx = CardIndex(card.Color(), card.Rank(), num_ranks, shuffle_color, color_permute);
-	  encoding[offset + idx] = 1;
-	  offset += bits_per_card;
-	}
-	assert(offset == cards.size() * bits_per_card);
+    for (const HanabiCard& card : cards) {
+      // Only a player's own cards can be invalid/unobserved.
+      assert(card.IsValid());
+      int idx = CardIndex(card.Color(), card.Rank(), num_ranks, shuffle_color, color_permute);
+      encoding[offset + idx] = 1;
+      offset += bits_per_card;
+    }
+    assert(offset == cards.size() * bits_per_card);
 
   }
   return encoding;
@@ -1398,7 +1447,7 @@ std::vector<float> CanonicalObservationEncoder::EncodeOwnHand(
 
 std::vector<float> CanonicalObservationEncoder::EncodeAllHand(
     const HanabiObservation& obs,
-	bool color_major,
+    bool color_major,
     bool shuffle_color,
     const std::vector<int>& color_permute
 ) const {
@@ -1409,43 +1458,43 @@ std::vector<float> CanonicalObservationEncoder::EncodeAllHand(
   int offset = 0;
   if (color_major) {
 
-	int bits_per_color = len / num_color;
-	int sym_bits_per_card = SymBitsPerCard(*parent_game_);
+    int bits_per_color = len / num_color;
+    int sym_bits_per_card = SymBitsPerCard(*parent_game_);
 
-	for (int player_idx = 0; player_idx < obs.Hands().size(); ++player_idx) {
-	  const std::vector<HanabiCard>& cards = obs.Hands()[player_idx].Cards();
-	  const int num_ranks = parent_game_->NumRanks();
+    for (int player_idx = 0; player_idx < obs.Hands().size(); ++player_idx) {
+      const std::vector<HanabiCard>& cards = obs.Hands()[player_idx].Cards();
+      const int num_ranks = parent_game_->NumRanks();
 
-	  for (const HanabiCard& card : cards) {
-		// Only a player's own cards can be invalid/unobserved.
-		assert(card.IsValid());
-		int c = card.Color();
-		if (shuffle_color) {
-		  c = color_permute[c];
-		}
-		encoding.at(c * bits_per_color + offset + card.Rank()) = 1;
-		offset += sym_bits_per_card;
-	  }
-	  offset += sym_bits_per_card * (parent_game_->HandSize() - cards.size());
-	}
-	assert(offset == bits_per_color);
+      for (const HanabiCard& card : cards) {
+        // Only a player's own cards can be invalid/unobserved.
+        assert(card.IsValid());
+        int c = card.Color();
+        if (shuffle_color) {
+          c = color_permute[c];
+        }
+        encoding.at(c * bits_per_color + offset + card.Rank()) = 1;
+        offset += sym_bits_per_card;
+      }
+      offset += sym_bits_per_card * (parent_game_->HandSize() - cards.size());
+    }
+    assert(offset == bits_per_color);
 
   } else {
 
-	for (int player_idx = 0; player_idx < obs.Hands().size(); ++player_idx) {
-	  const std::vector<HanabiCard>& cards = obs.Hands()[player_idx].Cards();
-	  const int num_ranks = parent_game_->NumRanks();
+    for (int player_idx = 0; player_idx < obs.Hands().size(); ++player_idx) {
+      const std::vector<HanabiCard>& cards = obs.Hands()[player_idx].Cards();
+      const int num_ranks = parent_game_->NumRanks();
 
-	  for (const HanabiCard& card : cards) {
-		// Only a player's own cards can be invalid/unobserved.
-		assert(card.IsValid());
-		int idx = CardIndex(card.Color(), card.Rank(), num_ranks, shuffle_color, color_permute);
-		encoding[offset + idx] = 1;
-		offset += bits_per_card;
-	  }
-	  offset += bits_per_card * (parent_game_->HandSize() - cards.size());
-	}
-	assert(offset == len);
+      for (const HanabiCard& card : cards) {
+        // Only a player's own cards can be invalid/unobserved.
+        assert(card.IsValid());
+        int idx = CardIndex(card.Color(), card.Rank(), num_ranks, shuffle_color, color_permute);
+        encoding[offset + idx] = 1;
+        offset += bits_per_card;
+      }
+      offset += bits_per_card * (parent_game_->HandSize() - cards.size());
+    }
+    assert(offset == len);
 
   }
   return encoding;
